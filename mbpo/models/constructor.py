@@ -18,9 +18,9 @@ def construct_model(obs_dim=11, act_dim=3, rew_dim=1, hidden_dim=200, num_networ
 	return model
 
 def format_samples_for_training(samples):
-	obs = samples['observations']
+	obs = np.concatenate((samples['observations.achieved_goal'], samples['observations.desired_goal'], samples['observations.observation']), axis=-1)
 	act = samples['actions']
-	next_obs = samples['next_observations']
+	next_obs = np.concatenate((samples['next_observations.achieved_goal'], samples['next_observations.desired_goal'], samples['next_observations.observation']), axis=-1)
 	rew = samples['rewards']
 	delta_obs = next_obs - obs
 	inputs = np.concatenate((obs, act), axis=-1)

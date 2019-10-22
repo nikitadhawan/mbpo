@@ -97,6 +97,12 @@ class MBPO(RLAlgorithm):
 
         obs_dim = np.prod(training_environment.observation_space.shape)
         act_dim = np.prod(training_environment.action_space.shape)
+        if obs_dim == None:
+            obs_dim = 0
+            for value in training_environment.observation_space.spaces.values():
+                obs_dim += value.shape[0]
+            obs_dim = np.prod((obs_dim, ))
+            # obs_dim = np.prod(training_environment.observation_space.spaces['observation'].shape) 
         self._model = construct_model(obs_dim=obs_dim, act_dim=act_dim, hidden_dim=hidden_dim, num_networks=num_networks, num_elites=num_elites)
         self._static_fns = static_fns
         self.fake_env = FakeEnv(self._model, self._static_fns)
@@ -384,6 +390,7 @@ class MBPO(RLAlgorithm):
         ))
         batch = self.sampler.random_batch(rollout_batch_size)
         obs = batch['observations']
+        # {'observation': batch['observations.observation'], 'achieved_goal': batch['observations.achieved_goal'], 'desired_goal': batch['observations.desired_goal']}
         steps_added = []
         for i in range(self._rollout_length):
             act = self._policy.actions_np(obs)
@@ -391,7 +398,16 @@ class MBPO(RLAlgorithm):
             next_obs, rew, term, info = self.fake_env.step(obs, act, **kwargs)
             steps_added.append(len(obs))
 
-            samples = {'observations': obs, 'actions': act, 'next_observations': next_obs, 'rewards': rew, 'terminals': term}
+            observations = []
+            for o in obs:
+                observations.append({'observation': o[-25:], 'achieved_goal': o[:3], 'desired_goal': o[3:6]})
+            next_observations = []
+            for o in next_obs:
+                next_observations.append({'observation': o[-25:], 'achieved_goal': o[:3], 'desired_goal': o[3:6]})
+            # obs = {'observation': batch['observations.observation'], 'achieved_goal': batch['observations.achieved_goal'], 'desired_goal': batch['observations.desired_goal']}
+
+            samples = {'observations': observations, 'actions': act, 'next_observations': next_observations, 'rewards': rew, 'terminals': term}
+            # import ipdb; ipdb.set_trace()
             self._model_pool.add_samples(samples)
 
             nonterm_mask = ~term.squeeze(-1)

@@ -77,7 +77,7 @@ class SimpleReplayPool(FlexibleReplayPool):
         dict_observations = defaultdict(list)
         for observation in samples['observations']:
             for key, value in observation.items():
-                dict_observations[key].append(value)
+                    dict_observations[key].append(value)
 
         dict_next_observations = defaultdict(list)
         for next_observation in samples['next_observations']:

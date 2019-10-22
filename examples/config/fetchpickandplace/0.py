@@ -1,8 +1,8 @@
 params = {
     'type': 'MBPO',
-    'universe': TODO,
-    'domain': TODO,
-    'task': TODO,
+    'universe': 'gym',
+    'domain': 'FetchPickAndPlace',
+    'task': 'v1',
 
     'log_dir': '~/ray_mbpo/',
     'exp_name': 'defaults',
