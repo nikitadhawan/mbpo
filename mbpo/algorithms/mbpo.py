@@ -374,8 +374,9 @@ class MBPO(RLAlgorithm):
 
     def _train_model(self, **kwargs):
         env_samples = self._pool.return_all_samples()
-        train_inputs, train_outputs = format_samples_for_training(env_samples)
-        model_metrics = self._model.train(train_inputs, train_outputs, **kwargs)
+        train_inputs, train_outputs, discr_inputs = format_samples_for_training(env_samples)
+        discr_fake = self._model_pool.return_all_samples()['observations']
+        model_metrics = self._model.train(train_inputs, train_outputs, discr_real, discr_fake, **kwargs)
         return model_metrics
 
     def _rollout_model(self, rollout_batch_size, **kwargs):

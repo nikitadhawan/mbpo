@@ -15,6 +15,7 @@ from scipy.io import savemat, loadmat
 
 from mbpo.models.utils import get_required_argument, TensorStandardScaler
 from mbpo.models.fc import FC
+from mbpo.models.discriminator import dicriminator
 
 from mbpo.utils.logging import Progress, Silent
 
@@ -137,7 +138,7 @@ class BNN:
 
         return self.layers.pop()
 
-    def finalize(self, optimizer, optimizer_args=None, *args, **kwargs):
+    def finalize(self, optimizer, obs_dim, optimizer_args=None, *args, **kwargs):
         """Finalizes the network.
 
         Arguments:
@@ -189,13 +190,23 @@ class BNN:
                                                 name="training_targets")
             train_loss = tf.reduce_sum(self._compile_losses(self.sy_train_in, self.sy_train_targ, inc_var_loss=True))
             train_loss += tf.add_n(self.decays)
-            train_loss += 0.01 * tf.reduce_sum(self.max_logvar) - 0.01 * tf.reduce_sum(self.min_logvar)
+            train_loss += 0.01 * tf.reduce_sum(self.max_logvar) - 0.01 * tf.reduce_sum(self.min_logvar) 
             self.mse_loss = self._compile_losses(self.sy_train_in, self.sy_train_targ, inc_var_loss=False)
 
             self.train_op = self.optimizer.minimize(train_loss, var_list=self.optvars)
+            
+            # Discriminator
+            self.d_real = tf.placeholder(dtype=tf.float32, shape=[self.num_nets, None, obs_dim])
+            self.d_fake = tf.placeholder(dtype=tf.float32, shape=[self.num_nets, None, obs_dim])
+            self.real_out = discriminator(d_real)
+            self.fake_out = discriminator(d_fake)
+            self.d_loss = -tf.reduce_mean(-tf.exp(self.real_out))
+            self.d_loss += tf.reduce_mean(-1 - self.fake_out)
+            self.d_optimizer = tf.train.AdamOptimizer
+            self.d_train_op = self.d_optimizer.minimize(d_loss, learning_rate=0.0002, beta1=0.5)
 
         # Initialize all variables
-        self.sess.run(tf.variables_initializer(self.optvars + self.nonoptvars + self.optimizer.variables()))
+        self.sess.run(tf.variables_initializer(self.optvars + self.nonoptvars + self.optimizer.variables() + self.d_optimizer.variables()))
 
         # Set up prediction
         with tf.variable_scope(self.name):
@@ -299,7 +310,7 @@ class BNN:
     # Model Methods #
     #################
 
-    def train(self, inputs, targets,
+    def train(self, inputs, targets, discr_real, discr_fake,  
               batch_size=32, max_epochs=None, max_epochs_since_update=5,
               hide_progress=False, holdout_ratio=0.0, max_logging=5000, max_grad_updates=None, timer=None, max_t=None):
         """Trains/Continues network training
@@ -356,6 +367,10 @@ class BNN:
                 self.sess.run(
                     self.train_op,
                     feed_dict={self.sy_train_in: inputs[batch_idxs], self.sy_train_targ: targets[batch_idxs]}
+                )
+                self.sess.run(
+                    self.d_train_op,
+                    feed_dict={self.d_real: discr_real[batch_idxs], self.d_fake: discr_fake[batch_idxs]}
                 )
                 grad_updates += 1
 
