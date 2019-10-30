@@ -233,6 +233,12 @@ class MBPO(RLAlgorithm):
 
                     gt.stamp('epoch_rollout_model')
                     # self._visualize_model(self._evaluation_environment, self._total_timestep)
+
+                    # model_train_metrics = self._train_model(batch_size=256, max_epochs=None, holdout_ratio=0.2, max_t=self._max_model_t)
+                    # model_metrics.update(model_train_metrics)
+                    # gt.stamp('epoch_train_model')
+
+
                     self._training_progress.resume()
 
                 self._do_sampling(timestep=self._total_timestep)
@@ -374,9 +380,12 @@ class MBPO(RLAlgorithm):
 
     def _train_model(self, **kwargs):
         env_samples = self._pool.return_all_samples()
-        train_inputs, train_outputs, discr_inputs = format_samples_for_training(env_samples)
-        discr_fake = self._model_pool.return_all_samples()['observations']
-        model_metrics = self._model.train(train_inputs, train_outputs, discr_real, discr_fake, **kwargs)
+        train_inputs, train_outputs, discr_real = format_samples_for_training(env_samples)
+        if hasattr(self, '_model_pool'):
+            discr_fake = self._model_pool.return_all_samples()['observations']
+            model_metrics = self._model.train(train_inputs, train_outputs, discr_real, discr_fake, True, **kwargs)
+        else:
+            model_metrics = self._model.train(train_inputs, train_outputs, discr_real, discr_real, False, **kwargs)
         return model_metrics
 
     def _rollout_model(self, rollout_batch_size, **kwargs):

@@ -15,9 +15,11 @@ from scipy.io import savemat, loadmat
 
 from mbpo.models.utils import get_required_argument, TensorStandardScaler
 from mbpo.models.fc import FC
-from mbpo.models.discriminator import dicriminator
+from mbpo.models.discriminator import discriminator
 
 from mbpo.utils.logging import Progress, Silent
+
+from mbpo import tflib as tl
 
 np.set_printoptions(precision=5)
 
@@ -198,15 +200,24 @@ class BNN:
             # Discriminator
             self.d_real = tf.placeholder(dtype=tf.float32, shape=[self.num_nets, None, obs_dim])
             self.d_fake = tf.placeholder(dtype=tf.float32, shape=[self.num_nets, None, obs_dim])
-            self.real_out = discriminator(d_real)
-            self.fake_out = discriminator(d_fake)
+            self.real_out = discriminator(self.d_real)
+            self.fake_out = discriminator(self.d_fake)
             self.d_loss = -tf.reduce_mean(-tf.exp(self.real_out))
             self.d_loss += tf.reduce_mean(-1 - self.fake_out)
-            self.d_optimizer = tf.train.AdamOptimizer
-            self.d_train_op = self.d_optimizer.minimize(d_loss, learning_rate=0.0002, beta1=0.5)
+            self.d_optimizer = tf.train.AdamOptimizer(learning_rate=0.0002, beta1=0.5)
+            self.d_train_op = self.d_optimizer.minimize(self.d_loss, var_list=tl.trainable_variables('D'))
 
         # Initialize all variables
-        self.sess.run(tf.variables_initializer(self.optvars + self.nonoptvars + self.optimizer.variables() + self.d_optimizer.variables()))
+        self.sess.run(tf.variables_initializer(self.optvars + self.nonoptvars + self.optimizer.variables() + tl.trainable_variables('D')))
+        self.sess.run(tf.global_variables_initializer())
+        # self.d_real = tf.placeholder(dtype=tf.float32, shape=[self.num_nets, None, obs_dim])
+        # self.d_fake = tf.placeholder(dtype=tf.float32, shape=[self.num_nets, None, obs_dim])
+        # self.real_out = discriminator(self.d_real)
+        # self.fake_out = discriminator(self.d_fake)
+        # self.d_loss = -tf.reduce_mean(-tf.exp(self.real_out))
+        # self.d_loss += tf.reduce_mean(-1 - self.fake_out)
+        # self.d_optimizer = tf.train.AdamOptimizer(learning_rate=0.0002, beta1=0.5)    
+        # self.d_train_op = self.d_optimizer.minimize(self.d_loss, var_list=tl.trainable_variables('D'))
 
         # Set up prediction
         with tf.variable_scope(self.name):
@@ -310,7 +321,7 @@ class BNN:
     # Model Methods #
     #################
 
-    def train(self, inputs, targets, discr_real, discr_fake,  
+    def train(self, inputs, targets, discr_real, discr_fake, train_d,   
               batch_size=32, max_epochs=None, max_epochs_since_update=5,
               hide_progress=False, holdout_ratio=0.0, max_logging=5000, max_grad_updates=None, timer=None, max_t=None):
         """Trains/Continues network training
@@ -359,6 +370,7 @@ class BNN:
         # else:
         #     epoch_range = trange(epochs, unit="epoch(s)", desc="Network training")
 
+        import ipdb; ipdb.set_trace()
         t0 = time.time()
         grad_updates = 0
         for epoch in epoch_iter:
@@ -368,6 +380,9 @@ class BNN:
                     self.train_op,
                     feed_dict={self.sy_train_in: inputs[batch_idxs], self.sy_train_targ: targets[batch_idxs]}
                 )
+                    # shape = [discr_real[batch_size].shape[0], discr_real[batch_size].shape[1], discr_real[batch_size].shape[2], 1]
+                    # discr_real = discr_real[batch_size].reshape(shape)
+                    # discr_fake = discr_fake[batch_size].reshape(shape)
                 self.sess.run(
                     self.d_train_op,
                     feed_dict={self.d_real: discr_real[batch_idxs], self.d_fake: discr_fake[batch_idxs]}
