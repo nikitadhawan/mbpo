@@ -13,8 +13,9 @@ class ExtraPolicyInfoSampler(SimpleSampler):
         if self._current_observation is None:
             self._current_observation = self.env.reset()
 
-        observations = self.env.convert_to_active_observation(
-            self._current_observation)[None]
+        observations = self._current_observation[None]
+        # self.env.convert_to_active_observation(
+        #     self._current_observation)[None]
         actions = self.policy.actions_np([observations])
         log_pis = self.policy.log_pis_np([observations], actions)
 

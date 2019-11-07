@@ -147,7 +147,7 @@ class MBPO(RLAlgorithm):
         self._reparameterize = reparameterize
         self._store_extra_policy_info = store_extra_policy_info
 
-        observation_shape = self._training_environment.active_observation_shape
+        observation_shape = self._training_environment.observation_space.shape
         action_shape = self._training_environment.action_space.shape
 
         assert len(observation_shape) == 1, observation_shape

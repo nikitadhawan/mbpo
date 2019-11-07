@@ -30,7 +30,7 @@ def get_Q_function_from_variant(variant, env, *args, **kwargs):
     preprocessor = get_preprocessor_from_params(env, preprocessor_params)
 
     return VALUE_FUNCTIONS[Q_type](
-        observation_shape=env.active_observation_shape,
+        observation_shape=env.observation_space.shape,
         action_shape=env.action_space.shape,
         *args,
         observation_preprocessor=preprocessor,
@@ -47,7 +47,7 @@ def get_V_function_from_variant(variant, env, *args, **kwargs):
     preprocessor = get_preprocessor_from_params(env, preprocessor_params)
 
     return VALUE_FUNCTIONS[V_type](
-        observation_shape=env.active_observation_shape,
+        observation_shape=env.observation_space.shape,
         *args,
         observation_preprocessor=preprocessor,
         **V_kwargs,

@@ -100,7 +100,7 @@ class SAC(RLAlgorithm):
 
         self._save_full_state = save_full_state
 
-        observation_shape = self._training_environment.active_observation_shape
+        observation_shape = self._training_environment.observation_space.shape
         action_shape = self._training_environment.action_space.shape
 
         assert len(observation_shape) == 1, observation_shape

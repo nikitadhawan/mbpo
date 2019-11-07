@@ -20,6 +20,9 @@ from examples.instrument import run_example_local
 
 import mbpo.static
 
+from metaworld.core.flat_goal_env import FlatGoalEnv
+from metaworld.envs.mujoco.sawyer_xyz.sawyer_pick_and_place import SawyerPickAndPlaceEnv
+
 class ExperimentRunner(tune.Trainable):
     def _setup(self, variant):
         set_seed(variant['run_params']['seed'])
@@ -40,14 +43,16 @@ class ExperimentRunner(tune.Trainable):
 
     def _build(self):
         variant = copy.deepcopy(self._variant)
-
+        import ipdb; ipdb.set_trace()
         environment_params = variant['environment_params']
-        training_environment = self.training_environment = (
-            get_environment_from_params(environment_params['training']))
-        evaluation_environment = self.evaluation_environment = (
-            get_environment_from_params(environment_params['evaluation'])
-            if 'evaluation' in environment_params
-            else training_environment)
+        # training_environment = self.training_environment = (
+        #     get_environment_from_params(environment_params['training']))
+        # evaluation_environment = self.evaluation_environment = (
+        #     get_environment_from_params(environment_params['evaluation'])
+        #     if 'evaluation' in environment_params
+        #     else training_environment)
+        training_environment = SawyerPickAndPlaceEnv()
+        evaluation_environment = training_environment
 
         replay_pool = self.replay_pool = (
             get_replay_pool_from_variant(variant, training_environment))

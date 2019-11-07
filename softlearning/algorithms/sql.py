@@ -115,7 +115,7 @@ class SQL(RLAlgorithm):
         self._train_Q = train_Q
         self._train_policy = train_policy
 
-        observation_shape = training_environment.active_observation_shape
+        observation_shape = training_environment.observation_space.shape
         action_shape = training_environment.action_space.shape
 
         assert len(observation_shape) == 1, observation_shape

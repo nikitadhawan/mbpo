@@ -41,10 +41,10 @@ class ExploreSampler(BaseSampler):
             self._current_observation = self.env.reset()
             self._s0 = self.env.unwrapped.state_vector()
 
-        action = self.policy.actions_np([
-            self.env.convert_to_active_observation(
-                self._current_observation)[None]
-        ])[0]
+        action = self.policy.actions_np([self._current_observation[None]])[0]
+       #     self.env.convert_to_active_observation(
+       #         self._current_observation)[None]
+       # ])[0]
 
         next_observation, reward, terminal, info = self.env.step(action)
         self._path_length += 1

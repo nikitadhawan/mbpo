@@ -40,7 +40,7 @@ def get_preprocessor_from_params(env, preprocessor_params, *args, **kwargs):
 
     preprocessor = PREPROCESSOR_FUNCTIONS[
         preprocessor_type](
-            env.active_observation_shape,
+            env.observation_space.shape,
             *args,
             **preprocessor_kwargs,
             **kwargs)
