@@ -370,7 +370,7 @@ class MBPO(RLAlgorithm):
 
         config = tf.ConfigProto()
         # config.gpu_options.allow_growth=True
-        with tf.Session(config=config) as sess:
+        with self._model.sess as sess:
             sess.run(tf.global_variables_initializer())
             sess.run(tf.local_variables_initializer())
 
