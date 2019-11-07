@@ -23,6 +23,8 @@ from mbpo.utils.visualization import visualize_policy
 from mbpo.utils.logging import Progress
 import mbpo.utils.filesystem as filesystem
 
+from .model import TCN
+
 
 def td_target(reward, discount, next_value):
     return reward + discount * next_value
@@ -242,6 +244,8 @@ class MBPO(RLAlgorithm):
                     self._do_training_repeats(timestep=self._total_timestep)
                 gt.stamp('train')
 
+                self._discriminator_train()
+
                 self._timestep_after_hook()
                 gt.stamp('timestep_after_hook')
 
@@ -315,6 +319,68 @@ class MBPO(RLAlgorithm):
         self._training_progress.close()
 
         yield {'done': True, **diagnostics}
+
+    def _discriminator_train(self):
+        in_channels = 1
+        n_classes = 1
+        batch_size = 32
+        seq_length = self._observation_shape[0]
+        levels = 7
+        nhid = 27
+        ksize = 6
+        dropout = 0.0
+        clip = -1
+        # epochs = args.epochs
+        # n_train = 50000
+        # n_test = 1000
+        steps = 0
+
+        with tf.variable_scope('discriminator', reuse=tf.AUTO_REUSE):
+            input_real = tf.placeholder(tf.float32, [batch_size, seq_length, in_channels])
+            input_fake = tf.placeholder(tf.float32, [batch_size, seq_length, in_channels])
+
+            channel_sizes = [nhid]*levels
+            kernel_size = ksize
+
+            # import ipdb; ipdb.set_trace()
+
+            output_real = TCN(input_real, n_classes, channel_sizes, seq_length, kernel_size=kernel_size, dropout=dropout)
+            output_fake = TCN(input_fake, n_classes, channel_sizes, seq_length, kernel_size=kernel_size, dropout=dropout)
+            # outputs is of size (batch_size, n_classes)
+
+            # loss = tf.losses.mean_squared_error(labels= labels, predictions=outputs )
+            def activation_fn(v): return -tf.exp(v)
+
+            def conjugate_fn(t): return -t - 1
+
+            d_r_loss = -tf.reduce_mean(activation_fn(output_real))
+            d_f_loss = tf.reduce_mean(conjugate_fn(output_fake))
+            loss = d_r_loss + d_f_loss
+
+            lr = 4e-3
+            optimizer = tf.train.AdamOptimizer(learning_rate=lr)
+            gradients, variables = zip(*optimizer.compute_gradients(loss))
+            if clip > 0:
+                gradients, _ = tf.clip_by_global_norm(gradients, args.clip)
+            try:
+                update_step = optimizer.apply_gradients(zip(gradients, variables))
+            except:
+                import ipdb; ipdb.set_trace()
+                update_step = optimizer.apply_gradients(zip(gradients, variables))
+
+        config = tf.ConfigProto()
+        # config.gpu_options.allow_growth=True
+        with tf.Session(config=config) as sess:
+            sess.run(tf.global_variables_initializer())
+            sess.run(tf.local_variables_initializer())
+
+            total_variables = np.sum([np.prod(v.get_shape().as_list()) for v in tf.trainable_variables()])
+            print('Total variables {:5d}'.format(int(total_variables)))
+
+            real = self._pool.random_batch(batch_size)['observations'].reshape((batch_size, seq_length, in_channels))
+            fake = self._model_pool.random_batch(batch_size)['observations'].reshape((batch_size, seq_length, in_channels))
+
+            sess.run(loss, feed_dict={input_real: real, input_fake: fake})
 
     def train(self, *args, **kwargs):
         return self._train(*args, **kwargs)
