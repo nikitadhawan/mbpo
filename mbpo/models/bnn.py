@@ -49,7 +49,7 @@ class BNN:
         print('[ BNN ] Initializing model: {} | {} networks | {} elites'.format(params['name'], params['num_networks'], params['num_elites']))
         if params.get('sess', None) is None:
             config = tf.ConfigProto()
-            # config.gpu_options.allow_growth = True
+            config.gpu_options.allow_growth = True
             self._sess = tf.Session(config=config)
         else:
             self._sess = params.get('sess')

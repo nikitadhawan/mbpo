@@ -240,7 +240,6 @@ class MBPO(RLAlgorithm):
 
                 if self.ready_to_train:
                     self._do_training_repeats(timestep=self._total_timestep)
-
                 self._train_discriminator()
 
                 gt.stamp('train')
@@ -384,8 +383,9 @@ class MBPO(RLAlgorithm):
     def _train_discriminator(self):
         real, _ = format_samples_for_training(self._pool.random_batch(self._model.disc_batch_size))
         fake, _ = format_samples_for_training(self._model_pool.random_batch(self._model.disc_batch_size))
-        log_pr_real = self._session.run(self._policy.log_pis([real[:, :self._observation_shape[0]]], real[:, -self._action_shape[0]:]))
-        log_pr_fake = self._session.run(self._policy.log_pis([fake[:, :self._observation_shape[0]]], fake[:, -self._action_shape[0]:]))
+        # import ipdb; ipdb.set_trace()
+        log_pr_real = self._policy.log_pis_np([real[:, :self._observation_shape[0]]], real[:, -self._action_shape[0]:])
+        log_pr_fake = self._policy.log_pis_np([fake[:, :self._observation_shape[0]]], fake[:, -self._action_shape[0]:])
         self._model.train_discriminator(real, fake, log_pr_real, log_pr_fake)
 
     def _rollout_model(self, rollout_batch_size, **kwargs):
