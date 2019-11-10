@@ -18,6 +18,8 @@ from mbpo.models.fc import FC
 
 from mbpo.utils.logging import Progress, Silent
 
+from .model import TCN
+
 np.set_printoptions(precision=5)
 
 
@@ -214,6 +216,60 @@ class BNN:
             self.sy_pred_mean3d_fac, self.sy_pred_var3d_fac = \
                 self.create_prediction_tensors(self.sy_pred_in3d, factored=True)
 
+        with tf.variable_scope(self.name):
+            self.disc_in_channels = 1
+            self.disc_n_classes = 1
+            self.disc_batch_size = 32
+            self.disc_seq_length = self.layers[0].get_input_dim()
+            levels = 7
+            nhid = 27
+            ksize = 6
+            dropout = 0.0
+            clip = -1
+            # epochs = args.epochs
+            # n_train = 50000
+            # n_test = 1000
+            steps = 0
+
+            self.disc_input_real = tf.placeholder(tf.float32, [self.disc_batch_size, self.disc_seq_length, self.disc_in_channels])
+            self.disc_input_fake = tf.placeholder(tf.float32, [self.disc_batch_size, self.disc_seq_length, self.disc_in_channels])
+
+            self.disc_channel_sizes = [nhid]*levels
+            kernel_size = ksize
+
+            # import ipdb; ipdb.set_trace()
+
+            self.disc_output_real = TCN(self.disc_input_real, self.disc_n_classes, self.disc_channel_sizes, self.disc_seq_length, kernel_size=kernel_size, dropout=dropout)
+            self.disc_output_fake = TCN(self.disc_input_fake, self.disc_n_classes, self.disc_channel_sizes, self.disc_seq_length, kernel_size=kernel_size, dropout=dropout)
+            # outputs is of size (batch_size, n_classes)
+
+            self.log_pr_real = tf.placeholder(tf.float32, [None, 1])  
+            self.log_pr_fake = tf.placeholder(tf.float32, [None, 1])
+
+            # loss = tf.losses.mean_squared_error(labels= labels, predictions=outputs )
+            def activation_fn(v): return -tf.exp(v)
+
+            def conjugate_fn(t): return -t - 1
+
+            d_r_loss = -tf.reduce_mean(activation_fn(self.disc_output_real + tf.reduce_sum(self.log_pr_real)))
+            d_f_loss = tf.reduce_mean(conjugate_fn(self.disc_output_fake + tf.reduce_sum(self.log_pr_fake)))
+            self.disc_loss = d_r_loss + d_f_loss
+
+            lr = 4e-3
+            self.disc_optimizer = tf.train.AdamOptimizer(learning_rate=lr)
+            gradients, variables = zip(*self.disc_optimizer.compute_gradients(self.disc_loss))
+            if clip > 0:
+                gradients, _ = tf.clip_by_global_norm(gradients, args.clip)
+            try:
+                self.disc_update_step = self.disc_optimizer.apply_gradients(zip(gradients, variables))
+            except:
+                import ipdb; ipdb.set_trace()
+                self.disc_update_step = self.disc_optimizer.apply_gradients(zip(gradients, variables))
+
+        # self.sess.run(tf.variables_initializer(self.disc_optimizer.variables()))
+        self.sess.run(tf.global_variables_initializer())
+        self.sess.run(tf.local_variables_initializer())
+
         # Load model if needed
         if self.model_loaded:
             with self.sess.as_default():
@@ -222,6 +278,12 @@ class BNN:
                 for i, var in enumerate(all_vars):
                     var.load(params_dict[str(i)])
         self.finalized = True
+
+    def train_discriminator(self, real, fake, log_pr_real, log_pr_fake):
+        real = real.reshape((self.disc_batch_size, self.disc_seq_length, self.disc_in_channels))
+        fake = fake.reshape((self.disc_batch_size, self.disc_seq_length, self.disc_in_channels))
+
+        self.sess.run([self.disc_update_step, self.disc_loss], feed_dict={self.disc_input_real: real, self.disc_input_fake: fake, self.log_pr_real: log_pr_real, self.log_pr_fake: log_pr_fake})
 
     ##################
     # Custom Methods #
